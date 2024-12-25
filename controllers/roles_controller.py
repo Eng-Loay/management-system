@@ -1,6 +1,7 @@
 from models.roles_model import Role
 from bson import ObjectId
 from pymongo.errors import PyMongoError
+
 def get_all_roles(db):
     try:
         roles = db.roles.find()
@@ -19,22 +20,28 @@ def get_role_by_id(db, role_id):
         raise RuntimeError(f"Error fetching role with ID {role_id}: {e}")
 
 def add_role(db, title, description, department_id):
+    if not ObjectId.is_valid(department_id):
+        raise ValueError("Invalid department ID")
+
     try:
+        # Check if the department exists
+        department_exists = db.departments.find_one({"_id": ObjectId(department_id)})
+        if not department_exists:
+            raise ValueError(f"Department with ID {department_id} does not exist")
+
+        # Prepare the role data
         role_data = {
             "title": title,
             "description": description,
-            "department_id": department_id
+            "department_id": ObjectId(department_id)  # Ensure department_id is stored as ObjectId
         }
 
-        result = db.roles.insert_one(role_data)  
+        # Insert the role into the collection
+        result = db.roles.insert_one(role_data)
         inserted_id = str(result.inserted_id)
-        print(f"Inserted role with ID: {inserted_id}")  
-        
         return inserted_id
     except PyMongoError as e:
-        print(f"Error: {e}")
         raise RuntimeError(f"Error adding new role: {e}")
-
 
 def edit_role(db, role_id, updated_data):
     if not ObjectId.is_valid(role_id):

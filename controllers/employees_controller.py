@@ -21,18 +21,26 @@ def get_employee_by_id(db, employee_id):
         raise RuntimeError(f"Error fetching employee with ID {employee_id}: {e}")
 
 def add_employee(db, name, email, raw_password, nationality, phone_number, department_id):
+    if not ObjectId.is_valid(department_id):
+        raise ValueError("Invalid department ID")
+
     try:
+        # Check if the department exists
+        department_exists = db.departments.find_one({"_id": ObjectId(department_id)})
+        if not department_exists:
+            raise ValueError(f"Department with ID {department_id} does not exist")
+
         # Ensure the password is encoded before hashing
         password_bytes = raw_password.encode('utf-8')
-        hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+        hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')  # Convert binary to string
 
-        # Create the employee dictionary with hashed password and nationality
+        # Create the employee dictionary with hashed password and department reference
         employee_data = {
             "name": name,
             "email": email,
             "phone_number": phone_number,
-            "department_id": department_id,
-            "hashed_password": hashed_password,
+            "department_id": ObjectId(department_id),
+            "hashed_password": hashed_password,  # Store as string
             "nationality": nationality
         }
 
@@ -42,8 +50,8 @@ def add_employee(db, name, email, raw_password, nationality, phone_number, depar
         # Return the employee's ID
         return str(result.inserted_id)
     except PyMongoError as e:
-        print(f"Error: {e}")  # Print error for debugging
         raise RuntimeError(f"Error adding new employee: {e}")
+
 
 def edit_employee(db, employee_id, updated_data):
     if not ObjectId.is_valid(employee_id):
